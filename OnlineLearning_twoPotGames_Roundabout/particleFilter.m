@@ -1,5 +1,5 @@
 % Main Particle Filter Function
-function [particles,estimated_weights,ESS] = particleFilter(X_sim,U_sim,x0, N, num_particles, W_xu_ranges, W_xu1,ocp,initial_guess,range_factor,car,std_dev,testtheta1,testtheta2,D1,D2)
+function [particles,estimated_weights,ESS,predicted_trajectories] = particleFilter(X_sim,U_sim,x0, N, num_particles, W_xu_ranges, W_xu1,ocp,initial_guess,range_factor,car,std_dev,testtheta1,testtheta2,D1,D2)
     % Step 1: Initialize particles
     particles = initializeParticles1(num_particles, W_xu_ranges,initial_guess,range_factor,std_dev);
     

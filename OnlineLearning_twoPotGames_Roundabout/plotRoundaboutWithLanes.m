@@ -2,7 +2,7 @@ function plotRoundaboutWithLanes()
 
     % Roundabout parameters
     outerRadius = 20; % Outer radius of the roundabout (smaller)
-    innerRadius = 10; % Inner radius of the roundabout (central island)
+    innerRadius = 7.50; % Inner radius of the roundabout (central island)
     numLanes = 2;     % Number of lanes in the roundabout
 
     % Angles for plotting

@@ -1,4 +1,4 @@
-clc
+ clc
 clear all
 close all
 %% Initial state
@@ -9,7 +9,7 @@ if 1
 [ocp,sim]=SettingUp(x0);
 end
 %% Preliminary Parameters for the particle filter.
-num_particles = 150;
+num_particles = 200;
 % Define the ranges for different components of W_x
 W_xu_ranges = [
     1e-5, 200;   % Range for x1
@@ -84,8 +84,16 @@ X_sim_next2 = X_sim_next2(1:5);
 end
 %% Particle filter
 N = size(X_sim, 2) - 1; %% Number of shooting nodes from which we extracted from the observed state, this is also equal to the shootign nodes beign used in solving the OCPs in here!
-[particles,estimated_W_xu,ess] = particleFilter(X_sim, U_sim ,x0, N, num_particles, W_xu_ranges,W_xu1,ocp,initial_guess,range_factor,car,std_dev,testtheta1,testtheta2,D1,D2);
+[particles,estimated_W_xu,ess,predicted_trajectories] = particleFilter(X_sim, U_sim ,x0, N, num_particles, W_xu_ranges,W_xu1,ocp,initial_guess,range_factor,car,std_dev,testtheta1,testtheta2,D1,D2);
 ESS=[ESS ess];
+
+%%%%%% Monitoring the predicted trajectories if car = 0 
+% plotRoundaboutWithLanes();
+% for j=1:length(predicted_trajectories)
+% plot(predicted_trajectories{j}(6,:),predicted_trajectories{j}(7,:))
+% hold on
+% end
+% %%%%%%
 %% Potential Game 1
 %%% solving the potential game from the ego's perspective with the
 %%% estimated weights
@@ -122,10 +130,20 @@ close(h);
 toc
 %% Figs
 %% Fig x_mpc traj
-  plotRoundaboutWithLanes();
+plotRoundaboutWithLanes();
 hold on;
-plot(x_mpc(1,:),x_mpc(2,:),'r--',x_mpc(6,:),x_mpc(7,:),'b--')
-grid on
+plot(x_mpc(1,:), x_mpc(2,:), 'r--', x_mpc(6,:), x_mpc(7,:), 'b--');
+
+% Example starting positions for two agents
+agent1_start = [x_mpc(1,1), x_mpc(2,1)]; % Starting position of agent 1
+agent2_start = [x_mpc(6,1), x_mpc(7,1)]; % Starting position of agent 2
+
+% Add text annotations
+text(agent1_start(1), agent1_start(2), 'Agent 1 Start', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'right', 'Color', 'r');
+text(agent2_start(1), agent2_start(2), 'Agent 2 Start', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'right', 'Color', 'b');
+
+grid on; 
+grid minor;
 return
 %% Fig X_mpc traj + x_sim (groundtruth) Comparasion
 %%%% Comparaision with the initial observation state
@@ -141,49 +159,49 @@ xlabel('x [m]');ylabel('y [m]'); title('Trajectory'); grid on; hold on;
     hold on 
  legend('xsimlearned1','xsimleaneard2','xsimgroundtruth1','xsimgroundtruth2');
  %% Fig w_evol
- %% Fig w_evol
-figure()
+
  % Initialization
 w_mean = mean(w_evol, 2);   % Mean of weights at each iteration
 w_std = std(w_evol, 0, 2);  % Standard deviation of weights at each iteration
-
+figure()
  subplot(3,1,1)
- plot(1:num_iterations,w_evol(1,:),1:num_iterations,w_evol(2,:))
+ plot(1:num_iterations,w_evol(1,:),1:num_iterations,w_evol(2,:));
+ xlabel('iteration');ylabel('Magnitude')
  hold on
 
 % Shaded area for Wx1
 fill([1:num_iterations fliplr(1:num_iterations)], ...
      [w_evol(1,:) + w_std(1,:) fliplr(w_evol(1,:) - w_std(1,:))], ...
      'b', 'FaceAlpha', 0.3, 'EdgeColor', 'none');
- grid on
-%  legend('Wx1','Wx2');
+ grid on; grid minor;
+ legend('Wx1','Wx2');
+ title(['Evolution of Wx1 and Wx2 with Ground Truth Wx1 = ', num2str(W_xu1(1)), ', Wx2 = ', num2str(W_xu1(2))]);
+
  % Shaded area for Wu1
-
- hold on
- plot(1:num_iterations,ones(1,num_iterations)*W_xu1(1),'r')
-
  subplot(3,1,2)
- plot(1:num_iterations,w_evol(6,:))
+ plot(1:num_iterations,w_evol(6,:));xlabel('iteration');ylabel('Magnitude')
+
  hold on
  fill([1:num_iterations fliplr(1:num_iterations)], ...
      [w_evol(6,:) + w_std(6,:) fliplr(w_evol(6,:) - w_std(6,:))], ...
      'g', 'FaceAlpha', 0.3, 'EdgeColor', 'none');
- grid on
-%  legend('Wu1')
- hold on
- plot(1:num_iterations,ones(1,num_iterations)*W_xu1(6),'r')
- subplot(3,1,3)
- plot(1:num_iterations,w_evol(7,:))
- hold on
+ grid on; grid minor;
+ legend('Wu1')
+ title(['Evolution of Wu1 with Ground Truth Wu1 = ', num2str(W_xu1(6))]);
+
  % Shaded area for Wu2
+ subplot(3,1,3)
+ plot(1:num_iterations,w_evol(7,:)); xlabel('iteration');ylabel('Magnitude')
+
+ hold on
 fill([1:num_iterations fliplr(1:num_iterations)], ...
      [w_evol(7,:) + w_std(7,:) fliplr(w_evol(7,:) - w_std(7,:))], ...
      'm', 'FaceAlpha', 0.3, 'EdgeColor', 'none');
-%  legend('Wu2');
- grid on
-  hold on
- plot(1:num_iterations,ones(1,num_iterations)*W_xu1(7),'r')
+ legend('Wu2');
+ grid on; grid minor;
+ title(['Evolution of Wu2 with Ground Truth Wu2 = ', num2str(W_xu1(7))]);
 
+saveas(gcf, 'W_evol.pdf','pdf');
  %% Figs u comparaision
  s=0;
  load('Sim_traj.mat');
@@ -306,7 +324,7 @@ plotRoundaboutWithLanes();
         set(car2_circle, 'XData', x_mpc(6,k) + x_circle, 'YData', x_mpc(7,k) + y_circle);
 
         % Pause to create animation effect
-        pause(0.10); % Adjust the pause time to control the speed of the animation
+        pause(0.0750); % Adjust the pause time to control the speed of the animation
     end
 end
 
